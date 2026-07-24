@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   test:
+    name: checker and CLI
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -22,10 +23,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
+      - name: Set up Python 3.14.6
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.14.6"
           cache: pip
 
       - name: Install package
@@ -34,8 +35,10 @@ jobs:
       - name: Type-check implementation and tests
         shell: bash
         run: |
-          set -o pipefail
+          set +e
           basedpyright --level warning --warnings src tests 2>&1 | tee basedpyright.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
 
       - name: Upload BasedPyright failure log
         if: failure()
@@ -45,7 +48,19 @@ jobs:
           path: basedpyright.log
 
       - name: Run unit tests
-        run: python -m unittest discover -s tests -v
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v 2>&1 | tee unittest.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload unittest failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unittest-log
+          path: unittest.log
 
       - name: Verify clean fixture
         run: strictpy check fixtures/clean > clean-report.json
@@ -77,3 +92,57 @@ jobs:
           if not any(code.startswith("basedpyright::") for code in codes):
               raise SystemExit("missing BasedPyright diagnostic")
           PY
+
+  generated:
+    name: generated project
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14.6
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.6"
+
+      - name: Install strictpy and uv
+        run: |
+          python -m pip install .
+          python -m pip install uv==0.11.29
+
+      - name: Generate project
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          cd "$root"
+          strictpy new hello-strictpy > report.json
+          grep -q '"ok": true' report.json
+          echo "GENERATED_PROJECT=$root/hello-strictpy" >> "$GITHUB_ENV"
+
+      - name: Validate locked project
+        shell: bash
+        working-directory: ${{ env.GENERATED_PROJECT }}
+        run: |
+          exec > >(tee "$GITHUB_WORKSPACE/generated-validation.log") 2>&1
+          set -euxo pipefail
+          uv lock --check
+          uv sync --locked
+          uv run basedpyright --level warning --warnings .
+          uv run python -m unittest discover -s tests -v
+          set +e
+          strictpy check . | tee strictpy-report.json
+          strictpy_status=${PIPESTATUS[0]}
+          set -e
+          test "$strictpy_status" -eq 0
+          grep -q '"ok": true' strictpy-report.json
+          test "$(uv run python -m hello_strictpy.main)" = "Hello from hello-strictpy."
+
+      - name: Upload generated validation failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-validation-log
+          path: generated-validation.log

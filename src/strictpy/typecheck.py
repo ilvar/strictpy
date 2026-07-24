@@ -31,18 +31,11 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
 
     with tempfile.TemporaryDirectory(prefix="strictpy-") as temporary:
         config_path = Path(temporary) / "pyrightconfig.json"
-        _ = config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
+        config = basedpyright_config(root)
+        _ = config_path.write_text(json.dumps(config), encoding="utf-8")
+        command = basedpyright_command(root, config_path)
         completed = subprocess.run(
-            [
-                "basedpyright",
-                "--outputjson",
-                "--level",
-                "warning",
-                "--warnings",
-                "--project",
-                str(config_path),
-                str(root),
-            ],
+            command,
             cwd=working_directory,
             capture_output=True,
             text=True,
@@ -64,6 +57,45 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
     for raw in cast(list[object], raw_diagnostics):
         diagnostics.append(parse_diagnostic(root, raw))
     return diagnostics
+
+
+def basedpyright_config(root: Path) -> dict[str, object]:
+    project_root = root if root.is_dir() else root.parent
+    extra_paths = [str(project_root)]
+    source_root = project_root / "src"
+    if source_root.is_dir():
+        extra_paths.append(str(source_root))
+
+    config = dict(CONFIG)
+    config["extraPaths"] = extra_paths
+    return config
+
+
+def basedpyright_command(root: Path, config_path: Path) -> list[str]:
+    command = [
+        "basedpyright",
+        "--outputjson",
+        "--level",
+        "warning",
+        "--warnings",
+    ]
+    project_python = discover_project_python(root)
+    if project_python is not None:
+        command.extend(["--pythonpath", str(project_python)])
+    command.extend(["--project", str(config_path), str(root)])
+    return command
+
+
+def discover_project_python(root: Path) -> Path | None:
+    project_root = root if root.is_dir() else root.parent
+    candidates = (
+        project_root / ".venv" / "bin" / "python",
+        project_root / ".venv" / "Scripts" / "python.exe",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def parse_diagnostic(root: Path, raw: object) -> Diagnostic:

@@ -4,7 +4,7 @@
 
 ## Current scope
 
-The initial release provides:
+The implemented workflow provides:
 
 - one stable JSON report for all diagnostics;
 - mandatory parameter and return annotations;
@@ -12,10 +12,13 @@ The initial release provides:
 - no explicit `Any` in annotations;
 - no `raise` statements;
 - no `try`, `except`, `except*`, `else`, or `finally` exception machinery;
-- no `assert` statements, because they raise `AssertionError` at runtime;
-- deterministic file and diagnostic ordering.
+- no `assert` statements in checked source;
+- deterministic file and diagnostic ordering;
+- a complete embedded agent manual;
+- Codex and Claude Code skill installation;
+- deterministic project generation with Python 3.14.6, `uv.lock`, and Hypothesis.
 
-The no-exceptions rule is syntactic. Python and third-party code can still fail at runtime. Strict Python code should model expected failure as data, for example with tagged unions, result objects, `None`, or explicit status values.
+The no-exceptions rule is syntactic. Python, strictpy itself, test frameworks, and third-party code can still raise internally. Strict Python project code should model expected failure as data, for example with tagged unions, result objects, `None`, enums, or explicit status values.
 
 ## Install
 
@@ -33,6 +36,19 @@ pipx install git+https://github.com/ilvar/strictpy
 
 The package requires Python 3.14 or newer and exact-pins its BasedPyright runtime.
 
+Install the bundled coding-agent skill after starting Codex or Claude Code at least once:
+
+```bash
+strictpy install-skills
+```
+
+It writes only to detected clients:
+
+- Codex: `~/.agents/skills/strictpy/SKILL.md`
+- Claude Code: `~/.claude/skills/strictpy/SKILL.md`
+
+The operation is idempotent and refuses to overwrite modified skill content. Installing the Python package itself does not modify agent configuration.
+
 ## Usage
 
 ```bash
@@ -43,13 +59,49 @@ strictpy path/to/project
 
 A missing path defaults to the current directory.
 
-Operational commands write exactly one JSON document to stdout. Human-oriented operational failures are written to stderr.
+Operational commands write exactly one JSON document to stdout. Human-oriented operational failures and installation notices are written to stderr.
 
 Exit statuses:
 
-- `0`: the project is clean;
+- `0`: clean report or successful project/skill installation;
 - `1`: diagnostics remain;
 - `2`: invalid invocation or operational failure.
+
+## Create a project
+
+```bash
+strictpy new hello-strictpy
+cd hello-strictpy
+uv sync --locked
+```
+
+The generated project contains:
+
+- `.python-version` pinned to Python 3.14.6;
+- exact-pinned BasedPyright 1.39.9;
+- exact-pinned Hypothesis 6.160.0;
+- a committed `uv.lock`;
+- a strict BasedPyright configuration;
+- a bounded property-test scaffold.
+
+Validate it with:
+
+```bash
+uv run basedpyright --level warning --warnings .
+uv run python -m unittest discover -s tests -v
+strictpy check .
+```
+
+## Property testing
+
+`tests/test_properties.py` is the handoff between the coding agent and Hypothesis:
+
+1. the agent states an observable invariant;
+2. Hypothesis generates bounded inputs;
+3. failures are shrunk to a minimal case;
+4. important minimized cases can be committed as explicit `@example` decorators.
+
+Hypothesis also stores a local example database under `.hypothesis/examples`. The generated `.gitignore` permits retaining that directory because Hypothesis is exact-pinned, but explicit `@example` cases remain the durable correctness mechanism.
 
 ## Stable policy codes
 
@@ -65,42 +117,11 @@ Exit statuses:
 
 BasedPyright diagnostics are exposed as `basedpyright::<rule>` where a rule is available.
 
-## Example
-
-Allowed:
-
-```python
-from dataclasses import dataclass
-from typing import Literal
-
-
-@dataclass(frozen=True)
-class ParseResult:
-    status: Literal["ok", "invalid"]
-    value: int | None
-
-
-def parse_count(text: str) -> ParseResult:
-    if text.isdecimal():
-        return ParseResult(status="ok", value=int(text))
-    return ParseResult(status="invalid", value=None)
-```
-
-Rejected:
-
-```python
-def parse_count(text):
-    try:
-        return int(text)
-    except ValueError:
-        raise RuntimeError("invalid count")
-```
-
 ## Development
 
 ```bash
 python -m pip install -e .
-basedpyright --level warning src tests
+basedpyright --level warning --warnings src tests
 python -m unittest discover -s tests -v
 strictpy check fixtures/clean
 ```
