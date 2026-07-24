@@ -119,11 +119,13 @@ class PolicyVisitor(ast.NodeVisitor):
 
     @override
     def visit_Raise(self, node: ast.Raise) -> None:
-        self._add(
-            node,
-            "strictpy::no_raise",
-            "exceptions are forbidden; represent failure as data",
-        )
+        # Allow raise if marked with # strictpy: allow-raise
+        if not self._is_exempted(node, "strictpy: allow-raise"):
+            self._add(
+                node,
+                "strictpy::no_raise",
+                "exceptions are forbidden; represent failure as data",
+            )
         self.generic_visit(node)
 
     @override

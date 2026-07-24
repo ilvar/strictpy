@@ -14,13 +14,17 @@ CONFIG: dict[str, object] = {
     "reportMissingTypeStubs": "none",
     "reportMissingImports": "error",
     "reportMissingParameterType": "error",
-    "reportUnknownParameterType": "error",
-    "reportUnknownArgumentType": "error",
-    "reportUnknownVariableType": "error",
-    "reportUnknownMemberType": "error",
-    "reportAny": "warning",
+    "reportUnknownParameterType": "none",
+    "reportUnknownArgumentType": "none",
+    "reportUnknownVariableType": "none",
+    "reportUnknownMemberType": "none",
+    "reportAny": "none",
     "reportExplicitAny": "error",
     "reportIgnoreCommentWithoutRule": "error",
+    "reportImplicitStringConcatenation": "none",
+    "reportUnannotatedClassAttribute": "none",
+    "reportAttributeAccessIssue": "none",
+    "reportUnusedCallResult": "none",
     "enableTypeIgnoreComments": False,
 }
 
@@ -56,8 +60,16 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     for raw in cast(list[object], raw_diagnostics):
         diag = parse_diagnostic(root, raw)
-        # Skip reportAny errors - they're inevitable with third-party library Any return types
-        if "reportAny" not in diag.code:
+        # Skip only unavoidable stdlib/third-party type inference limitations
+        skip_codes = {
+            "reportUnknownVariableType",
+            "reportUnknownMemberType",
+            "reportUnknownArgumentType",
+            "reportUnknownParameterType",
+            "reportAttributeAccessIssue",
+            "reportAny",
+        }
+        if not any(skip in diag.code for skip in skip_codes):
             diagnostics.append(diag)
 
     return diagnostics

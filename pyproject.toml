@@ -7,7 +7,7 @@ name = "strictpy"
 version = "0.2.0"
 description = "Deterministic strict Python checks for coding agents"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 license = { text = "MIT OR Apache-2.0" }
 authors = [{ name = "ilvar" }]
 dependencies = ["basedpyright==1.39.9"]
