@@ -38,7 +38,8 @@ def main() -> int:
             report = check_path(Path(operation.argument or "."))
         elif operation.command == "new":
             if operation.argument is None:
-                return usage_error("new requires a project name")
+                _ = usage_error("new requires a project name")
+                return 2
             _ = create_project(Path("."), operation.argument)
             report = clean_report()
         else:

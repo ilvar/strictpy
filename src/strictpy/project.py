@@ -37,7 +37,7 @@ def create_project(parent: Path, name: str) -> Path:
     try:
         staging.mkdir()
         write_project(staging, name, module_name)
-        staging.rename(destination)
+        _ = staging.rename(destination)
     except OSError as error:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)

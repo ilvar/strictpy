@@ -82,9 +82,9 @@ jobs:
           PY
 
   generated:
-    name: capture generated uv lock
+    name: generated project
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -100,7 +100,7 @@ jobs:
           python -m pip install .
           python -m pip install uv==0.11.29
 
-      - name: Generate and resolve project
+      - name: Generate project
         shell: bash
         run: |
           set -euo pipefail
@@ -108,15 +108,15 @@ jobs:
           cd "$root"
           strictpy new hello-strictpy > report.json
           grep -q '"ok": true' report.json
-          cd hello-strictpy
-          uv lock
-          cp uv.lock "$GITHUB_WORKSPACE/generated-uv.lock"
+          echo "GENERATED_PROJECT=$root/hello-strictpy" >> "$GITHUB_ENV"
 
-      - name: Upload generated uv lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-uv-lock
-          path: generated-uv.lock
-
-      - name: Stop after lock capture
-        run: exit 1
+      - name: Validate locked project
+        working-directory: ${{ env.GENERATED_PROJECT }}
+        run: |
+          uv lock --check
+          uv sync --locked
+          uv run basedpyright --level warning --warnings .
+          uv run python -m unittest discover -s tests -v
+          strictpy check . > strictpy-report.json
+          grep -q '"ok": true' strictpy-report.json
+          test "$(uv run python -m hello_strictpy.main)" = "Hello from hello-strictpy."
