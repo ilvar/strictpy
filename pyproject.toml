@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strictpy"
+version = "0.1.0"
+description = "Deterministic strict Python checks for coding agents"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "ilvar" }]
+dependencies = ["basedpyright==1.39.9"]
+
+[project.scripts]
+strictpy = "strictpy.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strictpy"]
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.14"
+include = ["src", "tests"]
+exclude = ["fixtures"]
+reportMissingTypeStubs = "none"
+reportUnusedCallResult = "error"
+reportUnnecessaryTypeIgnoreComment = "error"

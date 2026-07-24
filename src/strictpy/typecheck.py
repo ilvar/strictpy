@@ -1,0 +1,146 @@
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+from typing import cast
+
+from strictpy.model import Diagnostic, Level, Location
+
+
+CONFIG: dict[str, object] = {
+    "typeCheckingMode": "all",
+    "pythonVersion": "3.14",
+    "failOnWarnings": True,
+    "reportMissingTypeStubs": "none",
+    "reportMissingImports": "error",
+    "reportMissingParameterType": "error",
+    "reportUnknownParameterType": "error",
+    "reportUnknownArgumentType": "error",
+    "reportUnknownVariableType": "error",
+    "reportUnknownMemberType": "error",
+    "reportAny": "error",
+    "reportExplicitAny": "error",
+    "reportIgnoreCommentWithoutRule": "error",
+    "enableTypeIgnoreComments": False,
+}
+
+
+def run_basedpyright(requested: Path) -> list[Diagnostic]:
+    root = requested.resolve()
+    working_directory = root if root.is_dir() else root.parent
+
+    with tempfile.TemporaryDirectory(prefix="strictpy-") as temporary:
+        config_path = Path(temporary) / "pyrightconfig.json"
+        config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
+        completed = subprocess.run(
+            [
+                "basedpyright",
+                "--outputjson",
+                "--level",
+                "warning",
+                "--warnings",
+                "--project",
+                str(config_path),
+                str(root),
+            ],
+            cwd=working_directory,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    if completed.returncode not in {0, 1}:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise RuntimeError(
+            f"basedpyright failed with exit status {completed.returncode}: {detail}"
+        )
+
+    payload = parse_object(completed.stdout, "basedpyright output")
+    raw_diagnostics = payload.get("generalDiagnostics")
+    if not isinstance(raw_diagnostics, list):
+        raise RuntimeError("basedpyright output is missing generalDiagnostics")
+
+    diagnostics: list[Diagnostic] = []
+    for raw in raw_diagnostics:
+        diagnostics.append(parse_diagnostic(root, raw))
+    return diagnostics
+
+
+def parse_diagnostic(root: Path, raw: object) -> Diagnostic:
+    item = require_object(raw, "basedpyright diagnostic")
+    file_value = require_string(item.get("file"), "diagnostic file")
+    severity_value = require_string(item.get("severity"), "diagnostic severity")
+    message = require_string(item.get("message"), "diagnostic message")
+    rule_value = item.get("rule")
+    rule = rule_value if isinstance(rule_value, str) else "diagnostic"
+    range_value = require_object(item.get("range"), "diagnostic range")
+    start = require_object(range_value.get("start"), "diagnostic start")
+    end = require_object(range_value.get("end"), "diagnostic end")
+
+    line = require_int(start.get("line"), "start line") + 1
+    column = require_int(start.get("character"), "start column") + 1
+    end_line = require_int(end.get("line"), "end line") + 1
+    end_column = require_int(end.get("character"), "end column") + 1
+    path = Path(file_value)
+    relative = relative_name(root, path)
+
+    level: Level = "warning" if severity_value == "warning" else "error"
+    return Diagnostic(
+        level=level,
+        source="basedpyright",
+        code=f"basedpyright::{rule}",
+        message=message,
+        at=Location(
+            file=relative,
+            line=line,
+            column=column,
+            end_line=end_line,
+            end_column=end_column,
+            snippet=source_line(path, line),
+        ),
+    )
+
+
+def parse_object(text: str, name: str) -> dict[str, object]:
+    try:
+        value = cast(object, json.loads(text))
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"{name} is not valid JSON: {error}") from error
+    return require_object(value, name)
+
+
+def require_object(value: object, name: str) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{name} is not an object")
+    return {str(key): cast(object, item) for key, item in value.items()}
+
+
+def require_string(value: object, name: str) -> str:
+    if not isinstance(value, str):
+        raise RuntimeError(f"{name} is not a string")
+    return value
+
+
+def require_int(value: object, name: str) -> int:
+    if not isinstance(value, int):
+        raise RuntimeError(f"{name} is not an integer")
+    return value
+
+
+def relative_name(root: Path, path: Path) -> str:
+    resolved = path.resolve()
+    base = root if root.is_dir() else root.parent
+    try:
+        return resolved.relative_to(base).as_posix()
+    except ValueError:
+        return resolved.as_posix()
+
+
+def source_line(path: Path, line: int) -> str:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    if line < 1 or line > len(lines):
+        return ""
+    return lines[line - 1]

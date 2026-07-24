@@ -1,0 +1,42 @@
+strictpy — deterministic strict Python checks for coding agents
+
+USAGE
+  strictpy --help
+  strictpy check [PATH]
+  strictpy [PATH]
+
+PURPOSE
+  Check ordinary Python with a mandatory typed subset and a stable JSON output
+  contract. PATH defaults to the current directory.
+
+WORKFLOW
+  1. Write explicit parameter and return annotations.
+  2. Represent expected failure as data rather than exceptions.
+  3. Run `strictpy check PATH`.
+  4. Parse the single JSON document from stdout.
+  5. Address every diagnostic and repeat until `ok` is true.
+  6. Run project tests before submitting the change.
+
+STRICT RULES
+  - every parameter except `self` and `cls` requires an annotation;
+  - every function requires a return annotation, including `-> None`;
+  - `Any` annotations are forbidden;
+  - `raise` is forbidden;
+  - all `try` forms are forbidden, including handlers and `finally`;
+  - `assert` is forbidden;
+  - BasedPyright runs in `all` mode and target configuration cannot weaken it.
+
+OUTPUT
+  Operational commands emit one JSON document with:
+    ok
+    error_count
+    warning_count
+    diagnostics
+
+  Diagnostics are sorted by file, line, column, code, and message. Positions are
+  one-based. Sources are `strictpy` and `basedpyright`.
+
+EXIT STATUS
+  0  clean report or help printed
+  1  diagnostics remain
+  2  invalid invocation or operational failure
