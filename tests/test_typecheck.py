@@ -2,7 +2,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from strictpy.typecheck import basedpyright_command, discover_project_python
+from strictpy.typecheck import (
+    basedpyright_command,
+    basedpyright_config,
+    discover_project_python,
+)
 
 
 class TypecheckTests(unittest.TestCase):
@@ -35,3 +39,14 @@ class TypecheckTests(unittest.TestCase):
             command = basedpyright_command(root, config)
             self.assertIn("--pythonpath", command)
             self.assertIn(str(python), command)
+
+    def test_config_adds_project_and_src_import_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "src").mkdir()
+
+            config = basedpyright_config(root)
+            self.assertEqual(
+                config["extraPaths"],
+                [str(root), str(root / "src")],
+            )
