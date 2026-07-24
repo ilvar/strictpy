@@ -132,7 +132,11 @@ jobs:
           uv sync --locked
           uv run basedpyright --level warning --warnings .
           uv run python -m unittest discover -s tests -v
-          strictpy check . > strictpy-report.json
+          set +e
+          strictpy check . | tee strictpy-report.json
+          strictpy_status=${PIPESTATUS[0]}
+          set -e
+          test "$strictpy_status" -eq 0
           grep -q '"ok": true' strictpy-report.json
           test "$(uv run python -m hello_strictpy.main)" = "Hello from hello-strictpy."
 
