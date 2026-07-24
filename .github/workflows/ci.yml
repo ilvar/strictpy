@@ -32,7 +32,17 @@ jobs:
         run: python -m pip install .
 
       - name: Type-check implementation and tests
-        run: basedpyright --level warning --warnings src tests
+        shell: bash
+        run: |
+          set -o pipefail
+          basedpyright --level warning --warnings src tests 2>&1 | tee basedpyright.log
+
+      - name: Upload BasedPyright failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basedpyright-log
+          path: basedpyright.log
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
