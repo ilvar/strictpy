@@ -99,7 +99,8 @@ GENERATED PROJECTS
     <module>/main.py
     tests/test_properties.py
 
-  The project pins Python 3.14.6, BasedPyright 1.39.9, and Hypothesis 6.160.0.
+  The project pins Python 3.14.6, basedpyright==1.39.9, and
+  hypothesis==6.160.0.
 
   Validate it with:
     uv sync --locked
