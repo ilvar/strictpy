@@ -128,11 +128,13 @@ class PolicyVisitor(ast.NodeVisitor):
 
     @override
     def visit_Try(self, node: ast.Try) -> None:
-        self._add(
-            node,
-            "strictpy::no_try",
-            "exception handling is forbidden; use explicit result values",
-        )
+        # Allow try/except if marked with # strictpy: allow-try
+        if not self._is_exempted(node, "strictpy: allow-try"):
+            self._add(
+                node,
+                "strictpy::no_try",
+                "exception handling is forbidden; use explicit result values",
+            )
         self.generic_visit(node)
 
     @override
@@ -207,6 +209,12 @@ class PolicyVisitor(ast.NodeVisitor):
                     "strictpy::no_any",
                     "Any is forbidden; use a precise type or a checked union",
                 )
+
+    def _is_exempted(self, node: ast.AST, exemption: str) -> bool:
+        """Check if a node is exempted via a comment like # strictpy: allow-try"""
+        line = getattr(node, "lineno", 1)
+        line_str = line_text(self.lines, line)
+        return exemption in line_str
 
     def _add(self, node: ast.AST, code: str, message: str) -> None:
         line = getattr(node, "lineno", 1)
