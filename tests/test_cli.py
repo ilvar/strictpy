@@ -19,11 +19,14 @@ class CliTests(unittest.TestCase):
             "STRICT RULES",
             "OUTPUT CONTRACT",
             "GENERATED PROJECTS",
+            "UV DEPENDENCY WORKFLOW",
             "PROPERTY TESTING",
             "AGENT SKILLS",
             "LIMITS",
             "strictpy::no_raise",
             "hypothesis==6.160.0",
+            "#!/usr/bin/env -S uv run --script",
+            "uv add --script SCRIPT PACKAGE",
         ]:
             self.assertIn(required, completed.stdout)
 
