@@ -32,17 +32,9 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
     with tempfile.TemporaryDirectory(prefix="strictpy-") as temporary:
         config_path = Path(temporary) / "pyrightconfig.json"
         _ = config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
+        command = basedpyright_command(root, config_path)
         completed = subprocess.run(
-            [
-                "basedpyright",
-                "--outputjson",
-                "--level",
-                "warning",
-                "--warnings",
-                "--project",
-                str(config_path),
-                str(root),
-            ],
+            command,
             cwd=working_directory,
             capture_output=True,
             text=True,
@@ -64,6 +56,33 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
     for raw in cast(list[object], raw_diagnostics):
         diagnostics.append(parse_diagnostic(root, raw))
     return diagnostics
+
+
+def basedpyright_command(root: Path, config_path: Path) -> list[str]:
+    command = [
+        "basedpyright",
+        "--outputjson",
+        "--level",
+        "warning",
+        "--warnings",
+    ]
+    project_python = discover_project_python(root)
+    if project_python is not None:
+        command.extend(["--pythonpath", str(project_python)])
+    command.extend(["--project", str(config_path), str(root)])
+    return command
+
+
+def discover_project_python(root: Path) -> Path | None:
+    project_root = root if root.is_dir() else root.parent
+    candidates = (
+        project_root / ".venv" / "bin" / "python",
+        project_root / ".venv" / "Scripts" / "python.exe",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def parse_diagnostic(root: Path, raw: object) -> Diagnostic:
