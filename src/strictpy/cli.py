@@ -14,16 +14,16 @@ def main() -> int:
     if operation is None:
         return 2
     if operation == "help":
-        sys.stdout.write(HELP)
+        _ = sys.stdout.write(HELP)
         return 0
 
     try:
         report = check_path(Path(operation))
     except (OSError, RuntimeError, ValueError) as error:
-        sys.stderr.write(f"{error}\n")
+        _ = sys.stderr.write(f"{error}\n")
         return 2
 
-    sys.stdout.write(report.to_json())
+    _ = sys.stdout.write(report.to_json())
     return 0 if report.ok else 1
 
 
@@ -48,9 +48,9 @@ def parse_arguments(arguments: list[str]) -> str | None:
 
 
 def usage_error(message: str) -> None:
-    sys.stderr.write(f"{message}\n{USAGE}\n")
+    _ = sys.stderr.write(f"{message}\n{USAGE}\n")
     return None
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

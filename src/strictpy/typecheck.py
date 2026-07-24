@@ -31,7 +31,7 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
 
     with tempfile.TemporaryDirectory(prefix="strictpy-") as temporary:
         config_path = Path(temporary) / "pyrightconfig.json"
-        config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
+        _ = config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
         completed = subprocess.run(
             [
                 "basedpyright",
@@ -61,7 +61,7 @@ def run_basedpyright(requested: Path) -> list[Diagnostic]:
         raise RuntimeError("basedpyright output is missing generalDiagnostics")
 
     diagnostics: list[Diagnostic] = []
-    for raw in raw_diagnostics:
+    for raw in cast(list[object], raw_diagnostics):
         diagnostics.append(parse_diagnostic(root, raw))
     return diagnostics
 
@@ -112,7 +112,13 @@ def parse_object(text: str, name: str) -> dict[str, object]:
 def require_object(value: object, name: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise RuntimeError(f"{name} is not an object")
-    return {str(key): cast(object, item) for key, item in value.items()}
+
+    result: dict[str, object] = {}
+    for key, item in cast(dict[object, object], value).items():
+        if not isinstance(key, str):
+            raise RuntimeError(f"{name} contains a non-string key")
+        result[key] = item
+    return result
 
 
 def require_string(value: object, name: str) -> str:

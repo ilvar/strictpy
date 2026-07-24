@@ -43,7 +43,3 @@ def run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
-
-
-if __name__ == "__main__":
-    unittest.main()

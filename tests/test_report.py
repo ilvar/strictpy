@@ -22,7 +22,3 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report.error_count, 1)
         self.assertEqual(report.warning_count, 1)
         self.assertEqual(diagnostics[0]["code"], "a")
-
-
-if __name__ == "__main__":
-    unittest.main()

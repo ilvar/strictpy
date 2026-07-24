@@ -9,7 +9,7 @@ class PolicyTests(unittest.TestCase):
     def test_reports_annotations_any_and_exception_constructs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "broken.py"
-            path.write_text(
+            _ = path.write_text(
                 "from typing import Any\n"
                 "\n"
                 "def broken(value) -> Any:\n"
@@ -36,7 +36,7 @@ class PolicyTests(unittest.TestCase):
     def test_accepts_typed_result_data(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "clean.py"
-            path.write_text(
+            _ = path.write_text(
                 "def parse(value: str) -> int | None:\n"
                 "    if value.isdecimal():\n"
                 "        return int(value)\n"
@@ -46,7 +46,3 @@ class PolicyTests(unittest.TestCase):
             diagnostics = scan_path(path)
 
         self.assertEqual(diagnostics, [])
-
-
-if __name__ == "__main__":
-    unittest.main()
