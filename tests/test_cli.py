@@ -10,11 +10,36 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CliTests(unittest.TestCase):
-    def test_help_is_plain_text(self) -> None:
+    def test_help_is_complete_plain_text(self) -> None:
         completed = run_cli("--help")
         self.assertEqual(completed.returncode, 0)
         self.assertEqual(completed.stderr, "")
-        self.assertIn("STRICT RULES", completed.stdout)
+        for required in [
+            "AGENT WORKFLOW",
+            "STRICT RULES",
+            "OUTPUT CONTRACT",
+            "GENERATED PROJECTS",
+            "PROPERTY TESTING",
+            "AGENT SKILLS",
+            "LIMITS",
+            "strictpy::no_raise",
+            "hypothesis==6.160.0",
+        ]:
+            self.assertIn(required, completed.stdout)
+
+    def test_help_aliases_are_identical(self) -> None:
+        expected = run_cli("--help")
+        for arguments in [
+            ("-h",),
+            ("help",),
+            ("check", "--help"),
+            ("new", "--help"),
+            ("install-skills", "--help"),
+        ]:
+            actual = run_cli(*arguments)
+            self.assertEqual(actual.returncode, 0, arguments)
+            self.assertEqual(actual.stderr, "", arguments)
+            self.assertEqual(actual.stdout, expected.stdout, arguments)
 
     def test_clean_fixture_passes(self) -> None:
         completed = run_cli("check", str(ROOT / "fixtures" / "clean"))

@@ -1,42 +1,129 @@
 strictpy — deterministic strict Python checks for coding agents
 
-USAGE
-  strictpy --help
-  strictpy check [PATH]
-  strictpy [PATH]
-
 PURPOSE
-  Check ordinary Python with a mandatory typed subset and a stable JSON output
-  contract. PATH defaults to the current directory.
+  strictpy keeps ordinary Python syntax while enforcing a fully typed source
+  profile, unavoidable BasedPyright analysis, and a deterministic JSON feedback
+  contract. Expected failure is represented as data instead of exception-based
+  control flow in checked project source.
 
-WORKFLOW
-  1. Write explicit parameter and return annotations.
-  2. Represent expected failure as data rather than exceptions.
-  3. Run `strictpy check PATH`.
-  4. Parse the single JSON document from stdout.
-  5. Address every diagnostic and repeat until `ok` is true.
-  6. Run project tests before submitting the change.
+INSTALL
+  uv tool install git+https://github.com/ilvar/strictpy
+
+  Or:
+    pipx install git+https://github.com/ilvar/strictpy
+
+COMMANDS
+  strictpy --help
+      Print this complete agent manual. `-h`, `help`, `check --help`,
+      `new --help`, and `install-skills --help` are equivalent.
+
+  strictpy check [PATH]
+      Check a Python file or project. PATH defaults to the current directory.
+
+  strictpy new <NAME>
+      Create a deterministic Python 3.14.6 project with exact-pinned checking
+      and property-test dependencies plus a committed uv.lock.
+
+  strictpy install-skills
+      Install the bundled skill for detected Codex and Claude Code clients.
+
+  strictpy [PATH]
+      Backward-compatible alias for `strictpy check PATH`.
+
+AGENT WORKFLOW
+  1. Inspect the existing project before editing.
+  2. Add explicit parameter and return annotations.
+  3. Model expected failure with tagged unions, dataclasses, enums, None, or
+     explicit result values.
+  4. Run `strictpy check PATH`.
+  5. Parse the single JSON document written to stdout.
+  6. Address every diagnostic and repeat until `ok` is true.
+  7. Run the project's locked type checks and tests before submitting.
 
 STRICT RULES
-  - every parameter except `self` and `cls` requires an annotation;
-  - every function requires a return annotation, including `-> None`;
-  - `Any` annotations are forbidden;
-  - `raise` is forbidden;
-  - all `try` forms are forbidden, including handlers and `finally`;
-  - `assert` is forbidden;
-  - BasedPyright runs in `all` mode and target configuration cannot weaken it.
+  strictpy::missing_parameter_type
+      Every named parameter except conventional `self` and `cls` requires an
+      annotation.
 
-OUTPUT
-  Operational commands emit one JSON document with:
+  strictpy::missing_return_type
+      Every function and async function requires an explicit return annotation,
+      including `-> None`.
+
+  strictpy::no_any
+      Explicit Any annotations are forbidden. Use a precise type or checked
+      union.
+
+  strictpy::no_raise
+      Explicit raise statements are forbidden. Return failure data instead.
+
+  strictpy::no_try
+      try, except, except*, else, and finally exception machinery is forbidden.
+
+  strictpy::no_assert
+      assert statements are forbidden in checked source.
+
+  strictpy::syntax_error
+      The file could not be parsed as Python 3.14 syntax.
+
+  BasedPyright always runs in `all` mode with warnings treated as failures.
+  Target configuration cannot weaken the private strictpy configuration.
+
+OUTPUT CONTRACT
+  Operational commands write exactly one JSON document to stdout. Help is the
+  only plain-text stdout mode. Human-oriented operational information belongs
+  on stderr.
+
+  Top-level fields:
     ok
     error_count
     warning_count
     diagnostics
 
-  Diagnostics are sorted by file, line, column, code, and message. Positions are
-  one-based. Sources are `strictpy` and `basedpyright`.
+  Diagnostics contain level, source, code, message, and an `at` location with
+  file, one-based start/end positions, and the source snippet. Ordering is
+  deterministic by file, line, column, code, and message.
 
 EXIT STATUS
-  0  clean report or help printed
-  1  diagnostics remain
-  2  invalid invocation or operational failure
+  0  help printed, project or skills installed, or report is clean
+  1  checking completed but diagnostics remain
+  2  invalid invocation or operational/tool failure
+
+GENERATED PROJECTS
+  `strictpy new NAME` creates:
+    .gitignore
+    .python-version
+    README.md
+    pyproject.toml
+    uv.lock
+    <module>/__init__.py
+    <module>/main.py
+    tests/test_properties.py
+
+  The project pins Python 3.14.6, BasedPyright 1.39.9, and Hypothesis 6.160.0.
+
+  Validate it with:
+    uv sync --locked
+    uv run basedpyright --level warning --warnings .
+    uv run python -m unittest discover -s tests -v
+    strictpy check .
+
+PROPERTY TESTING
+  Replace the starter Hypothesis property with bounded observable invariants.
+  Hypothesis shrinks failures. Add important minimized cases with `@example` if
+  they must always run; the exact Hypothesis version is pinned so a shared
+  `.hypothesis/examples` database may also be retained.
+
+AGENT SKILLS
+  `strictpy install-skills` detects agents and installs:
+    Codex       ~/.agents/skills/strictpy/SKILL.md
+    Claude Code ~/.claude/skills/strictpy/SKILL.md
+
+  Installation is idempotent when contents match and refuses to overwrite a
+  customized skill. Installing the strictpy package itself never modifies agent
+  configuration.
+
+LIMITS
+  The no-exceptions policy is syntactic. Python, strictpy, test frameworks, and
+  third-party libraries can still raise internally. Do not claim otherwise.
+  The contract forbids explicit exception-based control flow in checked project
+  source and requires expected failures to be represented as data.
