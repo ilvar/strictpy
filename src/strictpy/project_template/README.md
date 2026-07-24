@@ -16,6 +16,34 @@ uv run python -m unittest discover -s tests -v
 strictpy check .
 ```
 
+## Dependencies
+
+Use `uv` to change project dependencies and commit `pyproject.toml` with the updated `uv.lock`:
+
+```bash
+uv add PACKAGE
+uv remove PACKAGE
+uv sync --locked
+uv run COMMAND
+```
+
+Do not mutate the environment with ad-hoc `pip install` commands.
+
+For a standalone script with its own dependencies, use PEP 723 inline metadata:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "boto3>=1.34",
+#     "textual>=0.65",
+# ]
+# ///
+```
+
+Maintain script metadata with `uv add --script SCRIPT PACKAGE` and `uv remove --script SCRIPT PACKAGE`. Run the script directly or with `uv run --script SCRIPT`. Use `uv lock --script SCRIPT` and commit the adjacent `SCRIPT.lock` when reproducibility matters.
+
 ## Property tests
 
 `tests/test_properties.py` contains a bounded starter invariant using exact-pinned Hypothesis. Replace it with observable domain properties rather than duplicating the implementation.

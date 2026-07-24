@@ -49,6 +49,11 @@ class ProjectTests(unittest.TestCase):
             self.assertIn("max_size=64", properties)
             self.assertIn("hello_strictpy.main", properties)
 
+            readme = (generated / "README.md").read_text(encoding="utf-8")
+            self.assertIn("uv add PACKAGE", readme)
+            self.assertIn("#!/usr/bin/env -S uv run --script", readme)
+            self.assertIn("uv lock --script SCRIPT", readme)
+
     def test_new_refuses_invalid_and_existing_destinations(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -92,6 +92,37 @@ uv run python -m unittest discover -s tests -v
 strictpy check .
 ```
 
+## Dependencies with uv
+
+Use `uv` as the dependency and execution interface. Do not instruct agents to run ad-hoc `pip install` commands inside a project environment.
+
+For a project, declare dependencies in `pyproject.toml` through `uv` and commit the updated lockfile:
+
+```bash
+uv add boto3 textual
+uv remove textual
+uv lock --check
+uv sync --locked
+uv run python -m package.module
+```
+
+For a standalone script, use PEP 723 inline metadata so the Python requirement and dependencies travel with the file:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "boto3>=1.34",
+#     "textual>=0.65",
+# ]
+# ///
+```
+
+Run it directly after making it executable, or use `uv run --script path/to/script.py`. Manage its metadata with `uv add --script path/to/script.py PACKAGE` and `uv remove --script path/to/script.py PACKAGE` rather than editing an environment manually.
+
+When reproducibility matters, run `uv lock --script path/to/script.py` and commit the adjacent `path/to/script.py.lock`. Inline-script metadata is self-contained: when `uv` runs such a script, project dependencies are not implicitly added.
+
 ## Property testing
 
 `tests/test_properties.py` is the handoff between the coding agent and Hypothesis:
@@ -120,10 +151,10 @@ BasedPyright diagnostics are exposed as `basedpyright::<rule>` where a rule is a
 ## Development
 
 ```bash
-python -m pip install -e .
-basedpyright --level warning --warnings src tests
-python -m unittest discover -s tests -v
-strictpy check fixtures/clean
+uv sync
+uv run basedpyright --level warning --warnings src tests
+uv run python -m unittest discover -s tests -v
+uv run strictpy check fixtures/clean
 ```
 
 See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.

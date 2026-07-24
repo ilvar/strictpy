@@ -32,9 +32,35 @@ Checked project source must:
 
 Expected failure should be represented as data with unions, dataclasses, enums, `None`, or explicit result values. The rule is syntactic and does not imply that Python or dependencies cannot raise internally.
 
+## uv dependency workflow
+
+Use `uv` for Python versions, dependency changes, locking, environment synchronization, and execution.
+
+For projects:
+
+- use `uv add PACKAGE` and `uv remove PACKAGE` instead of ad-hoc `pip install` or direct environment mutation;
+- commit `pyproject.toml` and `uv.lock` together;
+- use `uv sync --locked` for reproducible setup;
+- execute tools and modules through `uv run`.
+
+For standalone scripts with third-party dependencies, use PEP 723 inline metadata and the executable shebang:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "boto3>=1.34",
+#     "textual>=0.65",
+# ]
+# ///
+```
+
+Manage script dependencies with `uv add --script SCRIPT PACKAGE` and `uv remove --script SCRIPT PACKAGE`. Use `uv lock --script SCRIPT` and commit the adjacent `.lock` file when reproducibility matters. Inline-script dependencies are self-contained and must not rely on the surrounding project's environment.
+
 ## Agent-help contract
 
-`src/strictpy/help.txt` is a public operational manual. It must document every command, strict rule, report field, exit status, generated-project workflow, property-test workflow, agent-skill destination, and the limits of the no-exceptions claim.
+`src/strictpy/help.txt` is a public operational manual. It must document every command, strict rule, report field, exit status, generated-project workflow, uv dependency workflow, property-test workflow, agent-skill destination, and the limits of the no-exceptions claim.
 
 All help aliases must print identical text to stdout and exit successfully:
 
@@ -72,7 +98,8 @@ Generated projects must contain:
 - a strict BasedPyright editor configuration;
 - no runtime dependencies;
 - a bounded Hypothesis property test;
-- validation instructions for `uv sync --locked`, BasedPyright, unittest, and strictpy.
+- validation instructions for `uv sync --locked`, BasedPyright, unittest, and strictpy;
+- instructions to use `uv add` for project dependencies and PEP 723 metadata for standalone scripts.
 
 When a pinned version changes, update the template manifest, lockfile, help, README, tests, and CI in one coherent change.
 
@@ -100,9 +127,9 @@ When a pinned version changes, update the template manifest, lockfile, help, REA
 Before pushing:
 
 ```bash
-basedpyright --level warning --warnings src tests
-python -m unittest discover -s tests -v
-strictpy check fixtures/clean
+uv run basedpyright --level warning --warnings src tests
+uv run python -m unittest discover -s tests -v
+uv run strictpy check fixtures/clean
 ```
 
 For generated-project changes, additionally install `uv==0.11.29`, generate a project, and run:
